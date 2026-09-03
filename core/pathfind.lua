@@ -4,8 +4,8 @@
 
 local pathfind = {}
 
--- grid contract: grid(x, y) -> truthy when BLOCKED (walls), or pass
--- passFn(x, y) -> boolean for richer rules (hazards cost, closed doors...)
+-- passability contract: pass(x, y) -> truthy when the cell is WALKABLE
+-- (false/nil for walls — see mapPass below); richer rules are just functions
 local function neighbors(x, y, pass)
   local out = {}
   local candidates = { { x + 1, y }, { x - 1, y }, { x, y + 1 }, { x, y - 1 } }

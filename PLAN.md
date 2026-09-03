@@ -61,6 +61,15 @@ scenes rebuild canvases on the event), tools/package.bat (allowlist staging,
 forward-slash .love via .NET ZipFile — verified booting), GitHub Actions
 workflow (installs LÖVE 11.5, runs suite, uploads shots). 265/265.
 
+## Library adoption + editor polish (in progress)
+
+### Pass F — i18n + deps glue
+sample.i18n (en locale, 19 keys) now feeds every player-facing string in
+menu/game/results/milestone toasts; sample.D lazily loads the adopted engines
+(sprites/shaders/pathfind/atlas_pack/offline). Fixed pre-existing infra_test
+window-mode case that failed under the mandated FRAMEWORK_SANDBOX env. 273/273;
+gh_menu shot.
+
 ## Notable bugs the process caught (keep the lessons)
 
 - "Draw raises no error" is vacuous when a scene never defined draw — smoke

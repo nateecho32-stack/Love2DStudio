@@ -29,19 +29,18 @@ function scene.draw()
   local w, h = love.graphics.getDimensions()
   love.graphics.clear(0.07, 0.08, 0.1)
   love.graphics.setColor(1, 0.75, 0.3)
-  love.graphics.print("GEM HAUL", 40, 48, 0, 2, 2)
+  love.graphics.print(sample.i18n:t("menu.title"), 40, 48, 0, 2, 2)
   love.graphics.setColor(1, 1, 1)
   local stats = sample.loadStats()
-  love.graphics.print(string.format(
-    "best %d | lifetime gems %d | runs %d (%d wins)",
+  love.graphics.print(sample.i18n:t("menu.stats",
     stats.bestScore, stats.totalGems, stats.runs, stats.wins), 44, 110)
 
   U:beginFrame(love.mouse.getPosition(), love.mouse.isDown(1), 0, S.input.pressed("uiConfirm"))
-  if U:button("play", 44, 160, 180, 30, "Play (Enter)") then
+  if U:button("play", 44, 160, 180, 30, sample.i18n:t("menu.play")) then
     S.transitions.replace("gh_game", nil, { kind = "fade", dur = 0.35 })
     return
   end
-  if U:button("quit", 44, 200, 180, 30, "Quit (Esc)") then
+  if U:button("quit", 44, 200, 180, 30, sample.i18n:t("menu.quit")) then
     love.event.quit()
   end
   U:drawToasts(44, 250)

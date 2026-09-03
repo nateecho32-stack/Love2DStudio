@@ -8,6 +8,42 @@ local S = require("init")
 
 local sample = { S = S }
 
+-- lazy library registry: scenes pull the heavier engines on first access, so
+-- the menu boots without loading sprite/shader/pathfind machinery. i18n is
+-- eager — every scene draws strings.
+sample.D = S.deps.new({
+  i18n       = "core.i18n",
+  pathfind   = "core.pathfind",
+  shaders    = "render.shaders",
+  sprites    = "render.sprites",
+  atlas_pack = "tools.atlas_pack",
+  offline    = "content.offline",
+}, { "i18n" })
+
+-- shared locale registry: every player-facing string in the game resolves
+-- through sample.i18n:t(key, ...); en is the fallback for partial locales
+sample.i18n = sample.D.i18n.new{ default = "en" }
+sample.i18n:registerLocale("en", { name = "English", strings = {
+  ["menu.title"]       = "GEM HAUL",
+  ["menu.stats"]       = "best %d | lifetime gems %d | runs %d (%d wins)",
+  ["menu.play"]        = "Play (Enter)",
+  ["menu.quit"]        = "Quit (Esc)",
+  ["game.exit_open"]   = "EXIT",
+  ["game.exit_closed"] = "EXIT %d/%d",
+  ["game.hud"]         = "time %.0f   hearts %s   gems %d/%d   score %d",
+  ["game.help"]        = "wasd/arrows move — collect gems, reach the exit — F1 back to studio",
+  ["results.win"]      = "HAUL COMPLETE",
+  ["results.lose"]     = "HAUL FAILED",
+  ["results.score"]    = "score %d   gems %d   time left %.1fs",
+  ["results.new_best"] = "NEW BEST",
+  ["results.again"]    = "Play Again (Enter)",
+  ["results.menu"]     = "Menu (Esc)",
+  ["milestone.g10"]    = "10 gems collected",
+  ["milestone.g25"]    = "25 gems collected",
+  ["milestone.w1"]     = "first win",
+  ["toast.unlocked"]   = "UNLOCKED: %s",
+} })
+
 sample.SCENE_FILE = "scenes/gemhaul.lua"
 
 -- default layout: the built-in level the editor file replaces; designed so a
@@ -63,9 +99,9 @@ end
 -- ------------------------------------------------------------ milestones ----
 -- derived unlocks over lifetime stats: store the stat, derive the unlock
 sample.MILESTONES = {
-  { id = "g10", label = "10 gems collected", stat = "totalGems", at = 10 },
-  { id = "g25", label = "25 gems collected", stat = "totalGems", at = 25 },
-  { id = "w1", label = "first win", stat = "wins", at = 1 },
+  { id = "g10", labelKey = "milestone.g10", stat = "totalGems", at = 10 },
+  { id = "g25", labelKey = "milestone.g25", stat = "totalGems", at = 25 },
+  { id = "w1", labelKey = "milestone.w1", stat = "wins", at = 1 },
 }
 
 function sample.checkMilestones(ui)
@@ -77,7 +113,7 @@ function sample.checkMilestones(ui)
   end
   local crossed = sample.ladder:check()
   for _, entry in ipairs(crossed) do
-    if ui then ui:toast("UNLOCKED: " .. entry.label) end
+    if ui then ui:toast(sample.i18n:t("toast.unlocked", sample.i18n:t(entry.labelKey))) end
   end
   return crossed
 end

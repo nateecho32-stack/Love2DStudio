@@ -34,6 +34,7 @@ T.case("window mode: cycles with memory and sandbox guard", function()
   local events = {}
   local W = windowMode.new{
     bus = { emit = function(name, mode) events[#events + 1] = name .. ":" .. mode end },
+    sandboxed = false, -- fake window: cycle logic must run even under FRAMEWORK_SANDBOX
   }
   W:toggleFullscreen()               -- windowed -> borderless
   W:toggleFullscreen()               -- back to windowed

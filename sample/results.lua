@@ -24,24 +24,24 @@ function scene.draw()
   local r = sample.lastResult or { win = false, score = 0, gems = 0, timeLeft = 0 }
 
   love.graphics.setColor(r.win and { 0.55, 1, 0.6 } or { 1, 0.5, 0.45 })
-  love.graphics.print(r.win and "HAUL COMPLETE" or "HAUL FAILED", 40, 40, 0, 1.6, 1.6)
+  love.graphics.print(sample.i18n:t(r.win and "results.win" or "results.lose"),
+    40, 40, 0, 1.6, 1.6)
   love.graphics.setColor(1, 1, 1)
-  love.graphics.print(string.format(
-    "score %d   gems %d   time left %.1fs",
+  love.graphics.print(sample.i18n:t("results.score",
     r.score or 0, r.gems or 0, r.timeLeft or 0), 44, 96)
   local stats = sample.loadStats()
   if (r.score or 0) >= stats.bestScore and (r.score or 0) > 0 then
     love.graphics.setColor(1, 0.8, 0.3)
-    love.graphics.print("NEW BEST", 44, 120)
+    love.graphics.print(sample.i18n:t("results.new_best"), 44, 120)
     love.graphics.setColor(1, 1, 1)
   end
 
   U:beginFrame(love.mouse.getPosition(), love.mouse.isDown(1), 0, S.input.pressed("uiConfirm"))
-  if U:button("again", 44, 170, 180, 30, "Play Again (Enter)") then
+  if U:button("again", 44, 170, 180, 30, sample.i18n:t("results.again")) then
     S.transitions.replace("gh_game", nil, { kind = "fade", dur = 0.3 })
     return
   end
-  if U:button("menu", 44, 210, 180, 30, "Menu (Esc)") then
+  if U:button("menu", 44, 210, 180, 30, sample.i18n:t("results.menu")) then
     S.transitions.replace("gh_menu", nil, { kind = "fade", dur = 0.3 })
     return
   end

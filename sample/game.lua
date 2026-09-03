@@ -16,6 +16,9 @@ local R, F, E, U, PHYS, TR
 local playerBody, chaserBody
 local hearts, gems, gemsRequired, score, timeLeft, invuln
 local finished
+-- chaser navigation (Pass G): waypoints from A* over the wall grid
+local CHASER_CELL = 32
+local chaserPath, chaserRepath, chaserPassable
 
 local function finish(win)
   if finished then return end
@@ -69,7 +72,8 @@ local function drawWorld()
       love.graphics.rectangle("fill", transform.x - def.size.w / 2, transform.y - def.size.h / 2,
         def.size.w, def.size.h)
       love.graphics.setColor(1, 1, 1, open and 1 or 0.4)
-      love.graphics.print(open and "EXIT" or "EXIT " .. gems .. "/" .. gemsRequired,
+      love.graphics.print(open and sample.i18n:t("game.exit_open")
+        or sample.i18n:t("game.exit_closed", gems, gemsRequired),
         transform.x - 26, transform.y - 34)
     else
       love.graphics.setColor(def.tint[1], def.tint[2], def.tint[3], 1)
@@ -94,9 +98,9 @@ end
 
 local function drawHud()
   love.graphics.setColor(1, 1, 1)
-  love.graphics.print(string.format("time %.0f   hearts %s   gems %d/%d   score %d",
+  love.graphics.print(sample.i18n:t("game.hud",
     timeLeft, ("♥"):rep(hearts), gems, gemsRequired, score), 14, 10)
-  love.graphics.print("wasd/arrows move — collect gems, reach the exit — F1 back to studio", 14, 30)
+  love.graphics.print(sample.i18n:t("game.help"), 14, 30)
 end
 
 function scene.enter(args)
@@ -127,6 +131,7 @@ function scene.enter(args)
 
   -- build physics + triggers from the deserialized entities
   local spawnX, spawnY = 0, 0
+  local wallRects = {}
   E.ecs:each("transform", function(id, transform)
     local arch = E.ecs:get(id, "archetype")
     if not arch then return end
@@ -142,6 +147,9 @@ function scene.enter(args)
         end,
       })
     else
+      if arch.id == "wall" then
+        wallRects[#wallRects + 1] = { x = transform.x, y = transform.y }
+      end
       local body = spawnBodyFor(arch.id, transform.x, transform.y, arch.props)
       if body then
         E.ecs:add(id, "body", { ref = body })
@@ -156,6 +164,26 @@ function scene.enter(args)
     end
   end)
   E.ecs:update(0) -- sweep the destroyed spawn markers
+
+  -- chaser navigation grid: rasterize the walls into coarse blocked cells,
+  -- inflated by the chaser's radius so A* paths keep the body clear of corners
+  local blocked = {}
+  for _, r in ipairs(wallRects) do
+    local x0 = r.x - 24 - 14
+    local x1 = r.x + 24 + 14
+    local y0 = r.y - 24 - 14
+    local y1 = r.y + 24 + 14
+    for cy = math.floor(y0 / CHASER_CELL), math.floor(y1 / CHASER_CELL) do
+      for cx = math.floor(x0 / CHASER_CELL), math.floor(x1 / CHASER_CELL) do
+        local px, py = cx * CHASER_CELL + CHASER_CELL / 2, cy * CHASER_CELL + CHASER_CELL / 2
+        if px >= x0 and px <= x1 and py >= y0 and py <= y1 then
+          blocked[cx .. "," .. cy] = true
+        end
+      end
+    end
+  end
+  chaserPassable = function(cx, cy) return not blocked[cx .. "," .. cy] end
+  chaserPath, chaserRepath = nil, 0
 
   playerBody = PHYS:makeBody{ bodyType = "dynamic", x = spawnX, y = spawnY,
     shape = "circle", r = 13, category = "player", friction = 0,
@@ -221,10 +249,29 @@ function scene.update(dt)
     TR:watch("player", playerBody:getX(), playerBody:getY())
   end
 
-  -- chaser seek
+  -- chaser seek: A* waypoints around walls, repathing on a cadence; direct
+  -- seek as the fallback when the path is exhausted or no route exists
   if chaserBody and playerBody then
-    local dx = playerBody:getX() - chaserBody:getX()
-    local dy = playerBody:getY() - chaserBody:getY()
+    chaserRepath = chaserRepath - dt
+    if chaserRepath <= 0 then
+      chaserRepath = 0.25
+      chaserPath = sample.D.pathfind.astar(
+        math.floor(chaserBody:getX() / CHASER_CELL), math.floor(chaserBody:getY() / CHASER_CELL),
+        math.floor(playerBody:getX() / CHASER_CELL), math.floor(playerBody:getY() / CHASER_CELL),
+        chaserPassable, { maxNodes = 2000 })
+    end
+    local tx, ty = playerBody:getX(), playerBody:getY()
+    if chaserPath and #chaserPath > 0 then
+      local wp = chaserPath[1]
+      local wx, wy = wp.x * CHASER_CELL + CHASER_CELL / 2, wp.y * CHASER_CELL + CHASER_CELL / 2
+      if math.abs(wx - chaserBody:getX()) < 10 and math.abs(wy - chaserBody:getY()) < 10 then
+        table.remove(chaserPath, 1) -- waypoint reached
+      else
+        tx, ty = wx, wy
+      end
+    end
+    local dx = tx - chaserBody:getX()
+    local dy = ty - chaserBody:getY()
     local len = math.max(1, math.sqrt(dx * dx + dy * dy))
     chaserBody:setLinearVelocity(dx / len * 95, dy / len * 95)
   end
@@ -296,7 +343,9 @@ scene.hooks = {}
 scene.hooks.state = function()
   return { hearts = hearts, gems = gems, score = score, timeLeft = timeLeft,
            finished = finished, gemsRequired = gemsRequired,
-           playerX = playerBody and playerBody:getX() or nil }
+           playerX = playerBody and playerBody:getX() or nil,
+           chaserX = chaserBody and chaserBody:getX() or nil,
+           chaserY = chaserBody and chaserBody:getY() or nil }
 end
 
 return scene
