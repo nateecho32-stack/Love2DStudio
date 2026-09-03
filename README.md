@@ -1,6 +1,6 @@
 # Love2d Studio
 
-[![tests](https://github.com/nateecho32-stack/Love2DStudio/actions/workflows/tests.yml/badge.svg)](https://github.com/nateecho32-stack/Love2DStudio/actions/workflows/tests.yml)
+[![LÖVE](https://img.shields.io/badge/L%C3%96VE-11.5-blue)](https://love2d.org)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
 A zero-dependency LÖVE2D framework + toolset: the engine plumbing every 2D game
@@ -69,6 +69,17 @@ lovec . --audit               REM boot every scene, screenshot, write report.md
 
 In the runtime: **backtick** toggles the dev console, **F3** the profiler
 overlay, **F11** cycles window modes.
+
+## Documentation
+
+| | |
+|---|---|
+| [Setup](docs/setup.md) | Install LÖVE, clone, first run, where runtime files land, troubleshooting |
+| [Running the studio](docs/usage.md) | Boot flags, runtime hotkeys, dev console commands, crash logs |
+| [Your own game](docs/your-own-game.md) | Copy-in embedding guide: scenes, input, assets, saves, settings, audio, i18n |
+| [Scene editor](docs/editor.md) | Tools, shortcuts, tiles, prefabs, saving scenes |
+| [Testing](docs/testing.md) | The suite, single checks, sandbox env vars, visual gates, CI notes |
+| [Packaging](docs/packaging.md) | Building a distributable `.love` + release checklist |
 
 ## Using it in your own game
 
@@ -167,7 +178,7 @@ Conventions: snake_case files, dotted requires, `local M = {} ... return M`,
 every tunable lives in a config table, no magic numbers in module code.
 The event bus is **dot-call** convention (`bus.emit(...)`).
 
-## Testing & CI
+## Testing
 
 ```bat
 run-tests.bat                                  REM full suite (~10-20s), exit code = result
@@ -177,9 +188,10 @@ FRAMEWORK_CHECK=tests.rng_test run-tests.bat   REM one module (~2s)
 Test files under `tests/` are discovered automatically — drop in
 `tests/<name>_test.lua` and it runs. Visual gates use `--shot <scene>` (scenes:
 `demo`, `editor`, `play`, `gh_menu`, `gh_game`, `gh_results`), and `--audit`
-boots every scene, screenshots it, and writes a report. GitHub Actions runs the
-suite on every push/PR and uploads the screenshots as artifacts (see
-[.github/workflows/tests.yml](.github/workflows/tests.yml)).
+boots every scene, screenshots it, and writes a report. There is no hosted CI:
+standard GitHub runners have no OpenGL-capable GPU and LÖVE needs a GL context
+even for `--test` — see [docs/testing.md](docs/testing.md) for running it
+locally and the self-hosted/software-GL options.
 
 ## Status
 

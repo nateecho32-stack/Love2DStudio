@@ -41,14 +41,56 @@ function model.newCommandStack()
   return S
 end
 
+-- half-extents of an item's hit box in world units (archetype size * item scale)
+local function halfExtents(item, defs)
+  local def = defs(item.type)
+  local size = def and def.size or { w = 24, h = 24 }
+  local s = item.scale or 1
+  return size.w * s / 2, size.h * s / 2
+end
+
+-- is the WORLD point inside the item's oriented hit box? the point is
+-- inverse-rotated into the item's local frame, so rotated items select by
+-- their actual silhouette, not their unrotated rect
+local function itemContains(item, hw, hh, x, y)
+  local dx, dy = x - item.x, y - item.y
+  local rot = item.rot or 0
+  if rot ~= 0 then
+    local c, s = math.cos(-rot), math.sin(-rot)
+    dx, dy = dx * c - dy * s, dx * s + dy * c
+  end
+  return dx >= -hw and dx < hw and dy >= -hh and dy < hh
+end
+
+-- separating-axis overlap between an axis-aligned marquee and the item's
+-- oriented box (exact for rotated items; fast AABB path when rot == 0)
+local function rectHitsItem(item, hw, hh, lx, ly, hx, hy)
+  local rot = item.rot or 0
+  if rot == 0 then
+    return item.x + hw > lx and item.x - hw < hx
+       and item.y + hh > ly and item.y - hh < hy
+  end
+  local c, s = math.cos(rot), math.sin(rot)
+  local rcx, rcy = (lx + hx) / 2 - item.x, (ly + hy) / 2 - item.y
+  local rex, rey = (hx - lx) / 2, (hy - ly) / 2
+  -- the item's two local axes plus the two world axes are sufficient
+  for _, axis in ipairs({ { c, s }, { -s, c }, { 1, 0 }, { 0, 1 } }) do
+    local ax, ay = axis[1], axis[2]
+    local itemExtent = hw * math.abs(ax * c + ay * s) + hh * math.abs(-ax * s + ay * c)
+    local rectExtent = rex * math.abs(ax) + rey * math.abs(ay)
+    if math.abs(rcx * ax + rcy * ay) > rectExtent + itemExtent then
+      return false
+    end
+  end
+  return true
+end
+
 -- topmost item (last in list) whose bounds contain the point; returns index
 function model.pick(items, defs, x, y)
   for i = #items, 1, -1 do
     local item = items[i]
-    local def = defs(item.type)
-    local size = def and def.size or { w = 24, h = 24 }
-    if x >= item.x - size.w / 2 and x < item.x + size.w / 2
-      and y >= item.y - size.h / 2 and y < item.y + size.h / 2 then
+    local hw, hh = halfExtents(item, defs)
+    if itemContains(item, hw, hh, x, y) then
       return i
     end
   end
@@ -60,10 +102,8 @@ function model.pickAll(items, defs, x, y)
   local out = {}
   for i = 1, #items do
     local item = items[i]
-    local def = defs(item.type)
-    local size = def and def.size or { w = 24, h = 24 }
-    if x >= item.x - size.w / 2 and x < item.x + size.w / 2
-      and y >= item.y - size.h / 2 and y < item.y + size.h / 2 then
+    local hw, hh = halfExtents(item, defs)
+    if itemContains(item, hw, hh, x, y) then
       out[#out + 1] = i
     end
   end
@@ -77,10 +117,8 @@ function model.boxSelect(items, defs, x0, y0, x1, y1)
   local out = {}
   for i = 1, #items do
     local item = items[i]
-    local def = defs(item.type)
-    local size = def and def.size or { w = 24, h = 24 }
-    if item.x + size.w / 2 > lx and item.x - size.w / 2 < hx
-      and item.y + size.h / 2 > ly and item.y - size.h / 2 < hy then
+    local hw, hh = halfExtents(item, defs)
+    if rectHitsItem(item, hw, hh, lx, ly, hx, hy) then
       out[#out + 1] = i
     end
   end

@@ -19,6 +19,7 @@
 | Settings-overlay shot | `STUDIO_SETTINGS_SHOT=1 ... --shot demo` | ~3s |
 | Full audit (boots scenes, screenshots, report.md) | `lovec . --audit` | ~5s |
 | Reference game | `lovec . --sample` | manual |
+| Regenerate Gem Haul assets | `FRAMEWORK_CHECK=tools.assetgen lovec .`, then copy `sample/assets/` from the save dir into the repo | ~3s |
 | Packaging | `tools\package.bat out.love` | ~2s |
 
 Real-filesystem writes (editor Save, sidecars, thumbnails, audit artifacts)

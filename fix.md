@@ -4,16 +4,17 @@ Once an issue below is fixed, REMOVE its entry — the goal is a clean slate.
 
 ## Open
 
-- Editor rotation-aware picking: selection hit-tests use axis-aligned bounds,
-  so heavily rotated items select by their unrotated rect. Fine at editor
-  zooms; rotate the test point if it ever bites.
-- Editor string props write into raw scene data; `core.entities:validate`
-  still drops unknown props at PLAY time (schema-strings like `goblin.name`
-  need a schema entry to survive into gameplay).
+(none — clean slate)
 
 ## Fixed (removed on fix — keep the log clean)
 
-(Resolved during the completion campaign: editor string-prop text input —
-ui.textfield landed with love.textinput routing; list/palette wheel conflict —
-each list scrolls only while hovered; particles color-probe flash risk —
-probe runs once at first draw, cached thereafter.)
+(Resolved during the adoption campaign, Pass J: rotation-aware picking —
+editor/model pick/pickAll/boxSelect now hit-test the rotated silhouette
+(inverse-rotate the point / SAT for marquees) and respect item scale;
+string props — every archetype schema in archetypes.lua and
+sample/archetypes.lua carries the `name` string prop, so the inspector's
+entity name survives entities:validate into gameplay. Resolved during the
+completion campaign: editor string-prop text input — ui.textfield landed
+with love.textinput routing; list/palette wheel conflict — each list scrolls
+only while hovered; particles color-probe flash risk — probe runs once at
+first draw, cached thereafter.)

@@ -52,6 +52,31 @@ T.case("atlas: pack produces a deterministic layout with trim offsets", function
   packed.image:release()
 end)
 
+T.case("atlas: packed canvas holds trimmed content at the cell origin", function()
+  if not (love and love.graphics) then return end
+  -- frame a: opaque rect at (2,2)-(5,5) in an 8x8 canvas — everything else
+  -- is padding. The cell must start with CONTENT pixels; drawing the full
+  -- frame there instead left quads sampling padding (caught by the Gem Haul
+  -- adoption shot, Pass H).
+  local a = frame(8, 8, function(d)
+    for y = 2, 5 do for x = 2, 5 do d:setPixel(x, y, 255, 0, 0, 255) end end
+  end)
+  local b = frame(8, 8, function(d)
+    for y = 0, 7 do for x = 0, 7 do d:setPixel(x, y, 0, 255, 0, 255) end end
+  end)
+  local packed = atlas.pack({ a = a, b = b }) -- b pads a's cell, giving slack to probe
+  local f = packed.layout.a
+  local img = packed.image:newImageData()
+  for _, probe in ipairs({ { 0, 0 }, { f.w - 1, 0 }, { 0, f.h - 1 }, { f.w - 1, f.h - 1 } }) do
+    local _, _, _, alpha = img:getPixel(f.x + probe[1], f.y + probe[2])
+    T.isTrue(alpha > 0, "cell corner must be content, not padding")
+  end
+  -- and the padding ring just outside the content box must stay transparent
+  local _, _, _, outsideA = img:getPixel(f.x + f.w, f.y + f.h)
+  T.isTrue(outsideA == 0, "cell must not bleed past the trim box")
+  packed.image:release()
+end)
+
 T.case("loudness gate: healthy clip passes, quiet clip fails", function()
   if not (love and love.sound) then return end
   local loud = synth.toneData(440, 0.1, { vol = 0.8 })

@@ -16,6 +16,7 @@ function scene.enter()
     uiDown = { keys = { "down" }, buttons = { "dpdown" } },
     uiUp = { keys = { "up" }, buttons = { "dpup" } },
   })
+  sample.settleAway(U) -- away earnings first: granted gems can cross milestones
   sample.checkMilestones(U)
 end
 
@@ -37,6 +38,7 @@ function scene.draw()
 
   U:beginFrame(love.mouse.getPosition(), love.mouse.isDown(1), 0, S.input.pressed("uiConfirm"))
   if U:button("play", 44, 160, 180, 30, sample.i18n:t("menu.play")) then
+    sample.audio:play("select") -- committed wav; nil contract when missing
     S.transitions.replace("gh_game", nil, { kind = "fade", dur = 0.35 })
     return
   end

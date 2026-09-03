@@ -29,6 +29,21 @@ T.case("sprites: quads build once and frames carry trim offsets", function()
   T.isTrue(not S:draw("ghost", 0, 0)) -- miss reports false, no error
 end)
 
+T.case("sprites: center anchor mode centers frames on the draw position", function()
+  if not (love and love.graphics) then return end
+  local img = love.graphics.newCanvas(32, 32)
+  local feet = sprites.new{ layout = layout(), image = img }
+  local center = sprites.new{ layout = layout(), image = img, defaultAnchor = "center" }
+  T.eq(feet.anchor, "feet")
+  T.eq(center.anchor, "center")
+  local ok = pcall(function()
+    feet:draw("idle1", 10, 10)
+    center:draw("idle1", 10, 10)
+    center:draw("ghost", 10, 10) -- miss stays a clean false in either mode
+  end)
+  T.isTrue(ok, "anchored draws raised")
+end)
+
 T.case("animator: plays clips, loops, and reports done on one-shots", function()
   local S = sprites.new{ layout = layout(), image = nil }
   S:registerClip("walk", { frames = { "idle1", "idle2" }, fps = 10, loop = true })

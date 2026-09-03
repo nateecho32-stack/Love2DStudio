@@ -8,6 +8,7 @@ local function R(p) return require(root ~= "" and root .. "." .. p or p) end
 local S = R("init")
 local sample = R("sample.init")
 local ARCHETYPES = R("sample.archetypes")
+local art = R("sample.art")
 
 local GEM_VALUE = { common = 10, rare = 30, epic = 50 }
 
@@ -19,6 +20,8 @@ local finished
 -- chaser navigation (Pass G): waypoints from A* over the wall grid
 local CHASER_CELL = 32
 local chaserPath, chaserRepath, chaserPassable
+-- sprite chain (Pass H): runtime atlas + animators; empty atlas -> procedural
+local SPR, SH, playerAnim, chaserAnim, gemAnims = nil, nil, nil, nil, {}
 
 local function finish(win)
   if finished then return end
@@ -53,7 +56,9 @@ local function spawnBodyFor(type, x, y, props)
 end
 
 local function drawWorld()
-  -- editor content, procedural sprites from archetype tint/size
+  -- editor content: gems through the sprite chain (animator fallbacks keep
+  -- the procedural shapes); walls/spikes/exit stay inline (flat rects and a
+  -- live text label gain nothing from an atlas)
   E.ecs:each("transform", function(id, transform)
     local arch = E.ecs:get(id, "archetype")
     if not arch then return end
@@ -62,10 +67,20 @@ local function drawWorld()
     local s = transform.scale or 1
     if arch.id == "gem" then
       local bob = math.sin((love.timer.getTime or function() return 0 end)() * 3 + id) * 3
-      love.graphics.setColor(def.tint[1], def.tint[2], def.tint[3], 0.9)
-      love.graphics.circle("fill", transform.x, transform.y + bob, def.size.w / 2)
-      love.graphics.setColor(1, 1, 1, 0.7)
-      love.graphics.circle("line", transform.x, transform.y + bob, def.size.w / 2)
+      local anim = gemAnims[id]
+      if not anim then
+        anim = sample.D.sprites.animator(SPR)
+        anim.fallback = function(fx, fy)
+          love.graphics.setColor(def.tint[1], def.tint[2], def.tint[3], 0.9)
+          love.graphics.circle("fill", fx, fy, def.size.w / 2)
+          love.graphics.setColor(1, 1, 1, 0.7)
+          love.graphics.circle("line", fx, fy, def.size.w / 2)
+        end
+        anim:play("gem_spin")
+        anim.t = (id % 7) * 0.09 -- desync phases across gems
+        gemAnims[id] = anim
+      end
+      anim:draw(transform.x, transform.y + bob)
     elseif arch.id == "exit_zone" then
       local open = gems >= gemsRequired
       love.graphics.setColor(def.tint[1], def.tint[2], def.tint[3], open and 0.9 or 0.25)
@@ -82,16 +97,34 @@ local function drawWorld()
     end
   end)
 
-  -- the player (physics-driven)
+  -- the player (physics-driven): sprite frame when the atlas is live, with
+  -- the invuln blink upgraded to the hitflash shader (CPU blink kept as the
+  -- shaderless fallback)
   if playerBody then
-    local flash = invuln > 0 and (math.floor(invuln * 10) % 2 == 0) or false
-    love.graphics.setColor(flash and { 1, 1, 1, 0.4 } or { 0.95, 0.65, 0.25, 1 })
-    love.graphics.circle("fill", playerBody:getX(), playerBody:getY(), 13)
+    local frameKey = playerAnim and playerAnim:frame()
+    local sprite = frameKey and SPR and SPR:get(frameKey)
+    if sprite then
+      local f = sprite.frame
+      local px, py = playerBody:getX(), playerBody:getY()
+      local drawArgs = { sprite.quad, px, py, 0, 1, 1, f.w / 2, f.h / 2 }
+      local flashK = invuln > 0 and (0.55 + 0.45 * math.sin(invuln * 24)) or 0
+      if flashK > 0 and SH then
+        if not SH:hitFlash(SPR.image, flashK, drawArgs) then
+          love.graphics.setColor(1, 1, 1, 0.4)
+          love.graphics.circle("fill", px, py, 13)
+        end
+      else
+        love.graphics.draw(SPR.image, unpack(drawArgs))
+      end
+    else
+      local flash = invuln > 0 and (math.floor(invuln * 10) % 2 == 0) or false
+      love.graphics.setColor(flash and { 1, 1, 1, 0.4 } or { 0.95, 0.65, 0.25, 1 })
+      love.graphics.circle("fill", playerBody:getX(), playerBody:getY(), 13)
+    end
   end
   -- the chaser
   if chaserBody then
-    love.graphics.setColor(0.85, 0.3, 0.4, 1)
-    love.graphics.circle("fill", chaserBody:getX(), chaserBody:getY(), 12)
+    chaserAnim:draw(chaserBody:getX(), chaserBody:getY())
   end
   F:drawWorld()
 end
@@ -184,6 +217,47 @@ function scene.enter(args)
   end
   chaserPassable = function(cx, cy) return not blocked[cx .. "," .. cy] end
   chaserPath, chaserRepath = nil, 0
+
+  -- Pass H: bake the procedural art into a runtime atlas so the game consumes
+  -- the full asset chain (atlas_pack -> sprites/animator). pcall-guarded: any
+  -- failure leaves the atlas empty and drawWorld's animator fallbacks (the
+  -- same inline shapes as before) take over — the nil-return contract.
+  gemAnims = {}
+  SPR = sample.D.sprites.new{ defaultAnchor = "center" }
+  SH = sample.D.shaders.new()
+  SPR:registerClip("player_idle", { frames = { "player_1" }, fps = 4 })
+  SPR:registerClip("chaser_move", { frames = { "chaser_1", "chaser_2" }, fps = 6 })
+  SPR:registerClip("gem_spin", { frames = { "gem_1", "gem_2", "gem_3", "gem_4" }, fps = 6 })
+  -- prefer the committed atlas (ships in the .love); re-bake at runtime when
+  -- it is missing or stale, and fall back to the inline shapes when both fail
+  local okAtlas = pcall(function()
+    local layout = R("sample.assets.layout")
+    assert(layout and layout.player_1 and layout.gem_4, "committed layout missing frames")
+    SPR.layout = layout
+    SPR:setImage(love.graphics.newImage("sample/assets/atlas.png"))
+  end)
+  if not okAtlas then
+    local okBake, bakeErr = pcall(function()
+      local packed = sample.D.atlas_pack.pack(art.frames())
+      SPR.layout = packed.layout
+      SPR:setImage(packed.image)
+    end)
+    if not okBake then
+      S.log.warn("sample atlas unavailable, procedural shapes only: %s", tostring(bakeErr))
+    end
+  end
+  playerAnim = sample.D.sprites.animator(SPR)
+  playerAnim.fallback = function(fx, fy)
+    love.graphics.setColor(0.95, 0.65, 0.25, 1)
+    love.graphics.circle("fill", fx, fy, 13)
+  end
+  playerAnim:play("player_idle")
+  chaserAnim = sample.D.sprites.animator(SPR)
+  chaserAnim.fallback = function(fx, fy)
+    love.graphics.setColor(0.85, 0.3, 0.4, 1)
+    love.graphics.circle("fill", fx, fy, 12)
+  end
+  chaserAnim:play("chaser_move")
 
   playerBody = PHYS:makeBody{ bodyType = "dynamic", x = spawnX, y = spawnY,
     shape = "circle", r = 13, category = "player", friction = 0,
@@ -318,6 +392,9 @@ function scene.update(dt)
   R.camera:update(dt)
   R.particles:update(dt)
   F:update(dt)
+  for _, anim in pairs(gemAnims) do anim:update(dt) end
+  if playerAnim then playerAnim:update(dt) end
+  if chaserAnim then chaserAnim:update(dt) end
 end
 
 function scene.draw()
@@ -346,6 +423,11 @@ scene.hooks.state = function()
            playerX = playerBody and playerBody:getX() or nil,
            chaserX = chaserBody and chaserBody:getX() or nil,
            chaserY = chaserBody and chaserBody:getY() or nil }
+end
+-- Pass H test surface: the atlas/shader chain for the adoption gate
+scene.hooks.atlas = function()
+  return { spr = SPR, shaders = SH,
+           playerFrame = playerAnim and playerAnim:frame() or nil }
 end
 
 return scene

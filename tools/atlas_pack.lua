@@ -62,10 +62,16 @@ function atlas_pack.pack(sources, opts)
     local col = (i - 1) % columns
     local row = math.floor((i - 1) / columns)
     local x, y = col * cellW, row * cellH
-    love.graphics.draw(love.graphics.newImage(frame.data), x, y)
+    -- crop to the trim box BEFORE drawing: the layout quad (x, y, w, h) must
+    -- hold exactly the trimmed pixels — drawing the full frame here would
+    -- leave the content shifted by (ox, oy) inside the cell and quads would
+    -- sample padding plus a corner of the art
+    local cropped = love.image.newImageData(frame.w, frame.h)
+    cropped:paste(frame.data, 0, 0, frame.x, frame.y, frame.w, frame.h)
+    love.graphics.draw(love.graphics.newImage(cropped), x, y)
     layout[frame.name] = {
       x = x, y = y, w = frame.w, h = frame.h,
-      ox = frame.x, oy = frame.y,      -- trim offsets
+      ox = frame.x, oy = frame.y,      -- where the trim box sat in the source frame
       column = col + 1, row = row + 1, -- atlas page position
     }
   end

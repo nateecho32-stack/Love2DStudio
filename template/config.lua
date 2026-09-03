@@ -4,6 +4,7 @@
 return {
   saveDir = "saves/slot1",
   saveVersion = 1,
+  scenePath = "scenes/sandbox.lua",  -- the file the editor opens/saves
 
   player = {
     speed = 240,        -- px/s: crosses the screen in ~5s at 1280 wide

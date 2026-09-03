@@ -61,7 +61,7 @@ scenes rebuild canvases on the event), tools/package.bat (allowlist staging,
 forward-slash .love via .NET ZipFile — verified booting), GitHub Actions
 workflow (installs LÖVE 11.5, runs suite, uploads shots). 265/265.
 
-## Library adoption + editor polish (in progress)
+## Library adoption + editor polish (DONE)
 
 ### Pass F — i18n + deps glue
 sample.i18n (en locale, 19 keys) now feeds every player-facing string in
@@ -69,6 +69,43 @@ menu/game/results/milestone toasts; sample.D lazily loads the adopted engines
 (sprites/shaders/pathfind/atlas_pack/offline). Fixed pre-existing infra_test
 window-mode case that failed under the mandated FRAMEWORK_SANDBOX env. 273/273;
 gh_menu shot.
+
+### Pass G — pathfind chaser
+Walls rasterized into a 32px blocked-cell grid (inflated 14px); the chaser
+repaths A* every 0.25s and detours through gaps, direct-seek fallback kept.
+Fixed the stale core/pathfind.lua header (predicate is "passable"). New nav
+test proves direct-seek pins at the wall face while the A* chaser crosses and
+still drains hearts; WIN/LOSE untouched. 274/274; gh_game shot.
+
+### Pass H — atlas chain + hitflash
+Gem Haul bakes its procedural art into a runtime atlas at scene enter
+(atlas_pack -> sprites/animator, pcall-guarded) and draws player/gems/chaser
+through it; the invuln blink is now the hitflash shader with CPU fallback.
+FIXED atlas_pack.pack baking full frames while layouts described trimmed
+content — quads sampled padding; invisible to number-only gate tests, caught
+by the gh_game shot (content ratchet added). sprites.defaultAnchor now
+implemented ("center"), anchors made content-relative. 277/277; gh_game shot.
+
+### Pass I — offline earnings + asset gates
+sample.settleAway re-runs the gem cadence through content/offline.advance on
+menu enter (tuning snapshot-gated); commitRun stamps lastPlayed. sample/assets
+committed (atlas+layout+select.wav via tools/assetgen.lua, art shared with the
+runtime bake); the game loads the committed page first and gates it with a
+manifest ratchet, a loudness check, and a pair-loads test. 282/282; gh_menu shot.
+
+### Pass J — GitHub-facing docs
+docs/ (setup, usage, embedding guide, editor, testing, packaging) linked from
+README; stale CI badge/workflow text removed (workflow deleted in eb9d1a1 —
+runners have no GL). Fixed template main.lua dead --editor branch (pushed an
+unregistered scene): editor now constructed + registered, scenePath added to
+template config. Suite re-run green on the same tree.
+
+### Pass K — editor fixes (fix.md cleared)
+pick/pickAll/boxSelect are rotation- and scale-aware now: points inverse-rotate
+into the item frame, marquees run SAT against the oriented box. Every archetype
+schema (demo + sample) carries the `name` string prop so the inspector's entity
+name survives entities:validate into gameplay. fix.md is a clean slate.
+287/287; editor shot.
 
 ## Notable bugs the process caught (keep the lessons)
 
@@ -81,20 +118,24 @@ gh_menu shot.
 - events.lua bus is dot-call convention; colon-calling silently no-ops.
 - Physics: contacts are only valid during callbacks; destroying bodies fires
   end-contacts synchronously (drain must snapshot-swap; guard isDestroyed).
+- Packer gates asserting layout numbers never see canvas content — the atlas
+  shipped with quads sampling padding until a real game drew it (Pass H shot).
 
 ## Deferred by design (documented, not owed)
 
 Networking (Trippy net/ facade blueprint), minigame hub shell (20 Games
 model), dual-window co-op (SDL FFI), in-place Lua hot reload, editor scene
-browser (list/new/delete scene files), editor rotation-aware picking.
+browser (list/new/delete scene files).
 
 ## Done — verification evidence
 
-- Suite: 265 passed, 0 failed (exit 0); every module has tests.
-- Visual gates inspected: demo (settings overlay via STUDIO_SETTINGS_SHOT),
-  editor (post-rewrite toolbar/hierarchy/history/inspector), play, gh_menu,
-  gh_game.
-- Scripted gameplay: Gem Haul WIN + LOSE + stats persistence.
+- Suite: 287 passed, 0 failed (exit 0) under FRAMEWORK_SANDBOX=1; every
+  module has tests, coverage ratchet intact.
+- Visual gates inspected this campaign: gh_menu (i18n/offline), gh_game
+  (sprite atlas + chaser), editor (post picking rewrite).
+- Scripted gameplay: Gem Haul WIN + LOSE + chaser nav detour + stats
+  persistence + asset gates + offline earnings math.
+- The adopted libraries all have consumers: i18n, pathfind, sprites/animator,
+  atlas_pack, shaders, offline, deps, manifest_check, loudness_gate.
 - Template boots standalone; packaged .love boots standalone.
-- Single-check runner + instruction watchdog used to catch the pathfind
-  infinite loop in the wild.
+- Single-check runner + instruction watchdog used throughout the campaign.

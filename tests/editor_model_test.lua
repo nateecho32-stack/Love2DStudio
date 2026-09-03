@@ -96,6 +96,37 @@ T.case("boxSelect: marquee catches intersecting items", function()
   T.eq(model.boxSelect(items, defs, 0, 0, 10, 10), { 1 })
 end)
 
+T.case("pick: rotated items select by their silhouette, not their AABB", function()
+  local defs = function() return { size = { w = 20, h = 20 } } end
+  local items = { { type = "a", x = 0, y = 0, rot = math.pi / 4 } }
+  -- inside the rotated diamond, outside the unrotated rect
+  T.eq(model.pick(items, defs, 11, 0), 1)
+  -- inside the unrotated rect's corner, outside the diamond
+  T.isNil(model.pick(items, defs, 9, 9))
+  -- unrotated items keep the exact same hit box
+  local plain = { { type = "a", x = 0, y = 0 } }
+  T.eq(model.pick(plain, defs, 9.9, 9.9), 1)
+  T.isNil(model.pick(plain, defs, 10.1, 0))
+end)
+
+T.case("boxSelect: marquee vs rotated items is an exact overlap test", function()
+  local defs = function() return { size = { w = 20, h = 20 } } end
+  local items = { { type = "a", x = 0, y = 0, rot = math.pi / 4 } }
+  -- the diamond's corner tip reaches (~14.1, 0): a small marquee there hits
+  T.eq(model.boxSelect(items, defs, 13.5, -1, 15.5, 1), { 1 })
+  -- the same marquee past the tip misses
+  T.eq(model.boxSelect(items, defs, 15, -1, 17, 1), {})
+  -- a marquee over the unrotated rect's corner misses once rotated
+  T.eq(model.boxSelect(items, defs, 8, 8, 10, 10), {})
+end)
+
+T.case("pick: scale grows the hit box", function()
+  local defs = function() return { size = { w = 20, h = 20 } } end
+  local items = { { type = "a", x = 0, y = 0, scale = 2 } }
+  T.eq(model.pick(items, defs, 18, 0), 1)
+  T.isNil(model.pick(items, defs, 22, 0))
+end)
+
 T.case("copyItems: deep copies props without sharing", function()
   local items = {
     { type = "goblin", x = 5, y = 6, rot = 0.5, scale = 2, props = { hp = 10, tags = { "elite" } } },

@@ -5,12 +5,14 @@
 
 local sprites = {}
 
--- opts: { layout = { key = {x,y,w,h,ox,oy} }, image = Image, defaultAnchor = {"center","feet"} }
+-- opts: { layout = { key = {x,y,w,h,ox,oy} }, image = Image,
+--         defaultAnchor = "feet" (default, bottom-center) | "center" }
 function sprites.new(opts)
   opts = opts or {}
   local S = {
     layout = opts.layout or {},
     image = opts.image,
+    anchor = opts.defaultAnchor == "center" and "center" or "feet",
     _quads = {},
     clips = opts.clips or {},   -- name -> {frames = {key...}, fps = 10, loop = true}
   }
@@ -30,16 +32,20 @@ function sprites.new(opts)
     return { quad = quad, frame = frame }
   end
 
-  -- anchor restores pre-trim alignment: "feet" = bottom-center of the ORIGINAL
-  -- cell, "center" = cell center. ox/oy are the trim offsets recorded by the packer.
+  -- anchors work on the trimmed content box (the quad): "feet" = bottom-center
+  -- (characters stand on y), "center" = box center. ox/oy only record where the
+  -- trim box sat in the source frame — consumer data, not draw math.
   function S:draw(key, x, y, rot, sx, sy)
     local sprite = S:get(key)
     if not sprite then return false end
     local f = sprite.frame
     sx, sy = sx or 1, sy or 1
-    local ox, oy = f.ox or 0, f.oy or 0
-    local anchorX = f.w / 2 + ox
-    local anchorY = f.h + oy -- feet anchor by default (characters stand on y)
+    local anchorX, anchorY
+    if S.anchor == "center" then
+      anchorX, anchorY = f.w / 2, f.h / 2
+    else
+      anchorX, anchorY = f.w / 2, f.h -- feet anchor
+    end
     love.graphics.draw(S.image, sprite.quad, x, y, rot or 0, sx, sy, anchorX, anchorY)
     return true
   end

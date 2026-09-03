@@ -25,6 +25,10 @@ function love.load(args)
   -- audio: families under the game's assets/sfx
   S.game.audio = S.audio.new{ dirs = { "assets/sfx" } }
 
+  -- opt-in: the scene editor (empty palette until you pass your archetypes)
+  local editor = S.editor.new{ S = S, scenePath = config.scenePath }
+  S.scene.register("editor", editor)
+
   if flags.editor then
     S.scene.push("editor")
   else
