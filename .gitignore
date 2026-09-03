@@ -1,0 +1,29 @@
+# Agent/session workspace data (private working notes, never publish)
+.zcode/
+
+# Test & audit artifacts (--shot / audit runs)
+audits/
+shot_*.png
+
+# Build/export outputs
+*.love
+dist/
+build/
+builds/
+
+# Lua tooling caches
+*.luac
+.luacheckcache
+
+# OS junk
+Thumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+~$*
+.DS_Store
+._*
+*~
+
+# Editor settings
+.vscode/
+.idea/
